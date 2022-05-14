@@ -50,7 +50,14 @@ async function run() {
             res.send(treatments);
         });
 
-        app.post('/bookings', async (req, res) => {
+        app.get('/booking', async (req, res) => {
+            const email = req.query.email;
+            const query = { patientEmail: email };
+            const bookings = await bookingCollection.find(query).toArray();
+            res.send(bookings);
+        });
+
+        app.post('/booking', async (req, res) => {
             const booking = req.body;
             const query = { treatment: booking.treatment, date: booking.date, patient: booking.patient }
             const exists = await bookingCollection.findOne(query);
