@@ -1,5 +1,6 @@
 const express = require('express');
 const cors = require('cors');
+var jwt = require('jsonwebtoken');
 const { MongoClient, ServerApiVersion } = require('mongodb');
 require('dotenv').config();
 const app = express();
@@ -17,6 +18,7 @@ async function run() {
         await client.connect();
         const treatmentCollection = client.db('Doctor_Portals').collection('treatments');
         const bookingCollection = client.db('Doctor_Portals').collection('bookings');
+        const userCollection = client.db('Doctor_Portals').collection('users');
 
         app.get('/treatment', async (req, res) => {
             const query = {};
@@ -24,6 +26,19 @@ async function run() {
             const treatment = await cursor.toArray();
             res.send(treatment);
         });
+
+        app.put('/user/:email', async (req, res) => {
+            const email = req.params?.email;
+            const user = req.body;
+            const filter = { email: email };
+            const options = { upsert: true };
+            const updateDoc = {
+                $set: user,
+            };
+            const result = await userCollection.updateOne(filter, updateDoc, options);
+            const token = jwt.sign({ email: email }, process.env.ACCESS_TOKEN, { expiresIn: '1h' });
+            res.send({ result, token });
+        })
 
         app.get('/available', async (req, res) => {
             const date = req.query.date;
