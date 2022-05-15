@@ -10,6 +10,21 @@ const port = process.env.PORT || 5000;
 app.use(cors());
 app.use(express.json());
 
+function verifyJwt(req, res, next) {
+    const authHeader = req.headers.authorization;
+    if (!authHeader) {
+        return res.status(401).send({ message: 'Unauthorized Access' });
+    }
+    const token = authHeader.split(' ')[1];
+    jwt.verify(token, process.env.ACCESS_TOKEN, function (err, decoded) {
+        if (err) {
+            return res.status(403).send({ message: 'Forbidden Access' });
+        }
+        req.decoded = decoded;
+        next();
+    });
+}
+
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.pvyew.mongodb.net/myFirstDatabase?retryWrites=true&w=majority`;
 const client = new MongoClient(uri, { useNewUrlParser: true, useUnifiedTopology: true, serverApi: ServerApiVersion.v1 });
 
@@ -65,11 +80,16 @@ async function run() {
             res.send(treatments);
         });
 
-        app.get('/booking', async (req, res) => {
+        app.get('/booking', verifyJwt, async (req, res) => {
             const email = req.query.email;
-            const query = { patientEmail: email };
-            const bookings = await bookingCollection.find(query).toArray();
-            res.send(bookings);
+            const decodedEmail = req.decoded.email;
+            if (email === decodedEmail) {
+                const query = { patientEmail: email };
+                const bookings = await bookingCollection.find(query).toArray();
+                return res.send(bookings);
+            } else {
+                return res.status(403).send({ message: 'Forbidden Access' });
+            }
         });
 
         app.post('/booking', async (req, res) => {
@@ -82,6 +102,11 @@ async function run() {
                 const result = await bookingCollection.insertOne(booking);
                 return res.send({ success: true, result });
             }
+        });
+
+        app.get('/users', verifyJwt, async (req, res) => {
+            const users = await userCollection.find().toArray();
+            res.send(users);
         });
 
     } finally {
