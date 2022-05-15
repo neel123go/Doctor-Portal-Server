@@ -42,6 +42,31 @@ async function run() {
             res.send(treatment);
         });
 
+        app.get('/admin/:email', async (req, res) => {
+            const email = req.params.email;
+            const user = await userCollection.findOne({ email: email });
+            const isAdmin = user.role === 'admin';
+            res.send({ admin: isAdmin });
+        })
+
+        app.put('/user/admin/:email', verifyJwt, async (req, res) => {
+            const email = req.params?.email;
+            const requester = req.decoded.email;
+            const requesterAccount = await userCollection.findOne({ email: requester });
+            if (requesterAccount.role === 'admin') {
+                const filter = { email: email };
+                const updateDoc = {
+                    $set: {
+                        role: 'admin'
+                    },
+                };
+                const result = await userCollection.updateOne(filter, updateDoc);
+                return res.send(result);
+            } else {
+                return res.status(403).send({ message: 'Forbidden Access' });
+            }
+        })
+
         app.put('/user/:email', async (req, res) => {
             const email = req.params?.email;
             const user = req.body;
@@ -53,7 +78,7 @@ async function run() {
             const result = await userCollection.updateOne(filter, updateDoc, options);
             const token = jwt.sign({ email: email }, process.env.ACCESS_TOKEN, { expiresIn: '1h' });
             res.send({ result, token });
-        })
+        });
 
         app.get('/available', async (req, res) => {
             const date = req.query.date;
